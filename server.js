@@ -19,7 +19,7 @@ db.once('open', () => {
 });
 
 const bookSchema = new mongoose.Schema({
-    name: { type: String, unique: true }, // Making 'name' attribute unique
+    name: { type: String, unique: true },
     author: String,
     publicationDate: Date,
     genre: String
@@ -31,7 +31,7 @@ const Book = mongoose.model('Book', bookSchema);
 app.post('/addBook', async (req, res) => {
     console.log('POST /addBook');
     console.log('Request body:', req.body);
-    
+
     const newBook = new Book({
         name: req.body.name,
         author: req.body.author,
@@ -40,34 +40,50 @@ app.post('/addBook', async (req, res) => {
     });
 
     try {
-        const savedBook = await newBook.save();
-        console.log('Book added:', savedBook);
-        res.status(200).send('Book added successfully: ' + savedBook);
+        const existingBook = await Book.findOne({ name: newBook.name });
+        if (!existingBook) {
+            const savedBook = await newBook.save();
+            console.log('Book added:', savedBook);
+            res.status(200).send('Book added successfully: ' + savedBook);
+        } else {
+            console.log('Book already exists');
+            res.status(409).send('Book already exists');
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send(err);
     }
 });
 
+
 // Update a book
-app.put('/updateBook/:id', async (req, res) => {
-    console.log('PUT /updateBook/:id');
-    console.log('Request params:', req.params);
+app.put('/updateBook', async (req, res) => {
+    console.log('PUT /updateBook');
     console.log('Request body:', req.body);
 
+    const { name, ...updateFields } = req.body;
+
     try {
-        const updatedBook = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!name) {
+            console.log('Book name is required');
+            return res.status(400).send('Book name is required');
+        }
+
+        const updatedBook = await Book.findOneAndUpdate({ name: name }, { $set: updateFields }, { new: true });
+        
         if (!updatedBook) {
             console.log('Book not found');
             return res.status(404).send('Book not found');
         }
+        
         console.log('Book updated:', updatedBook);
         res.status(200).send('Book updated successfully: ' + updatedBook);
     } catch (err) {
-        console.error(err);
-        res.status(500).send(err);
+        console.error('Error updating book:', err);
+        res.status(500).send('Error updating book: ' + err.message);
     }
 });
+
 
 // Search for books
 app.get('/searchBooks', async (req, res) => {
@@ -86,12 +102,11 @@ app.get('/searchBooks', async (req, res) => {
 });
 
 // Delete a book
-app.delete('/deleteBook/:id', async (req, res) => {
-    console.log('DELETE /deleteBook/:id');
-    console.log('Request params:', req.params);
+app.delete('/deleteBook/:name', async (req, res) => {
+    const bookName = req.params.name;
 
     try {
-        const deletedBook = await Book.findByIdAndDelete(req.params.id);
+        const deletedBook = await Book.findOneAndDelete({ name: bookName });
         if (!deletedBook) {
             console.log('Book not found');
             return res.status(404).send('Book not found');
