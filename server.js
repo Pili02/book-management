@@ -19,7 +19,7 @@ db.once('open', () => {
 });
 
 const bookSchema = new mongoose.Schema({
-    name: { type: String, unique: true },
+    name: { type: String, unique: true, required: true }, // Making 'name' attribute unique and required
     author: String,
     publicationDate: Date,
     genre: String
@@ -55,7 +55,6 @@ app.post('/addBook', async (req, res) => {
     }
 });
 
-
 // Update a book
 app.put('/updateBook', async (req, res) => {
     console.log('PUT /updateBook');
@@ -64,26 +63,18 @@ app.put('/updateBook', async (req, res) => {
     const { name, ...updateFields } = req.body;
 
     try {
-        if (!name) {
-            console.log('Book name is required');
-            return res.status(400).send('Book name is required');
-        }
-
         const updatedBook = await Book.findOneAndUpdate({ name: name }, { $set: updateFields }, { new: true });
-        
         if (!updatedBook) {
             console.log('Book not found');
             return res.status(404).send('Book not found');
         }
-        
         console.log('Book updated:', updatedBook);
         res.status(200).send('Book updated successfully: ' + updatedBook);
     } catch (err) {
         console.error('Error updating book:', err);
-        res.status(500).send('Error updating book: ' + err.message);
+        res.status(500).send(err);
     }
 });
-
 
 // Search for books
 app.get('/searchBooks', async (req, res) => {
